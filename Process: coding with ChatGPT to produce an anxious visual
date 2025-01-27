@@ -1,0 +1,87 @@
+let steps = 360 * 3;
+let noiseScale = 0.003;
+const noiseAmount = 50;
+
+let port;
+let connectBtn;
+let myVal = 0;
+
+function setup() {
+  createCanvas(400, 400);
+  noFill();
+  stroke(255, 50);
+  background(0);
+
+  // Create a serial connection to Arduino
+  port = createSerial();
+
+  port.open('Arduino', 9600);  // Automatically open serial connection at the start
+
+  connectBtn = createButton('Connect to Arduino');
+  connectBtn.position(20, 360);
+  connectBtn.mousePressed(connectBtnClick);
+}
+
+function draw() {
+  background(0);
+
+  // Read potentiometer value from Arduino
+  let incomingValue = port.readUntil("\n");
+  if (incomingValue.length > 0) {
+    myVal = int(incomingValue); // Update potentiometer value
+    console.log('Potentiometer Value: ', myVal);  // Debugging log
+  }
+
+  // Map the potentiometer value to control how many circles to draw
+  let numCircles = map(myVal, 0, 1023, 5, 1); // More circles at low value, less at high
+
+  // Draw circles based on the potentiometer value
+  for (let i = 0; i < numCircles; i++) {
+    let radius = random(50, 100);  // Random radius for each circle
+    let noiseScale = random(0.002, 0.005);  // Random noise scale for each circle
+    let xOffset = random(-width / 4, width / 4);  // Random horizontal offset
+    let yOffset = random(-height / 4, height / 4); // Random vertical offset
+    
+    // Draw each circle
+    distortedCircle(width / 2 + xOffset, height / 2 + yOffset, radius, noiseScale);
+  }
+  
+  // If only one circle is drawn, apply normal distortion behavior
+  if (numCircles === 1) {
+    distortedCircle(width / 2, height / 2, 100, 0.003);
+  }
+}
+
+// Simplified distorted circle function
+function distortedCircle(x, y, r, noiseScale) {
+  beginShape();
+  for (let i = 0; i <= steps; i++) {
+    let xPos = x + r * cos((TWO_PI * i) / steps);
+    let yPos = y + r * sin((TWO_PI * i) / steps);
+    
+    xPos += map(
+      noise(noiseScale * xPos, noiseScale * yPos, frameCount / 500),
+      0,
+      1,
+      -noiseAmount,
+      noiseAmount
+    );
+    yPos += map(
+      noise(noiseScale * xPos, noiseScale * yPos, 1),
+      0,
+      1,
+      -noiseAmount,
+      noiseAmount
+    );
+    vertex(xPos, yPos);
+  }
+  endShape();
+}
+
+function connectBtnClick() {
+  if (!port.opened()) {
+    port.open('Arduino', 9600);
+  } else {
+    port.close();
+  }
+}
