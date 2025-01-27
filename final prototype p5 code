@@ -1,0 +1,123 @@
+// inspired by Kentucky Route Zero's CAVE ART
+
+// configuration variables
+// how many points to use to draw our bent circle
+let steps = 360 * 3;
+
+// the radius of the bent circle
+let r = 324;
+
+// how much to dampen the noise by; makes it jagged or smooth
+let noiseScale = 0.003;
+
+// how far to offset based on the noise
+const noiseAmount = 10;
+
+let noiseSpeed = 0;
+
+let port; 
+let connectBtn;
+let myVal = 0;
+
+function setup() {
+  createCanvas(400, 400);
+  noFill();
+  stroke(255);
+  // stroke(0, 0, 255, 50);
+  background(0);
+  r = 400 / 2.5;
+
+   port = createSerial();
+
+   port.open('Arduino', 9600);  // Automatically open serial connection at the start
+
+   connectBtn = createButton('Connect to Arduino');
+   connectBtn.position(20, 460);
+   connectBtn.mousePressed(connectBtnClick);
+}
+
+function draw() {
+  background(220);
+
+  let incomingValue = port.readUntil("\n");
+    if (incomingValue.length > 0) {
+      myVal = int(incomingValue); // Update potentiometer value
+      console.log('Potentiometer Value: ', myVal);
+    }
+    
+    noiseScale = map(myVal, 0 ,1023, 0, 0.03)
+    // if (myVal > 512)
+      distortedCircle();
+    // else {
+    //   jitteryCircles()
+    // }
+
+    noiseSpeed = map(myVal, 0, 1023, 1000, 10)
+    
+}
+
+function distortedCircle() {
+
+  beginShape();
+  for (let i = 0; i <= steps; i++) {
+    // use cos and sin to draw our circle point by point
+    let potValue = map(myVal, 0, 1023, 0, 0.05);
+
+    let jaggedFactor = random(1- potValue, 1+ potValue);
+
+    x = width / 2 + r * jaggedFactor * cos((TWO_PI * i) / steps);
+    y = height / 2 + r * jaggedFactor * sin((TWO_PI * i) / steps);
+    x += map(
+      noise(noiseScale * x, noiseScale * y, frameCount / noiseSpeed),
+      0,
+      1,
+      -noiseAmount,
+      noiseAmount
+    );
+    y += map(
+      noise(noiseScale * x, noiseScale * y, 1),
+      0,
+      1,
+      -noiseAmount,
+      noiseAmount
+    );
+
+    //y = y * (random() * myVal)
+    vertex(x, y);
+  }
+  endShape();
+  print("Circle drawn with r:", r); // Debugging line
+}
+
+// function jitteryCircles() {
+
+//   // Map the potentiometer value to control how many circles to draw
+//   let numCircles = map(myVal, 0, 512, 5, 1); // More circles at low value, less at high
+//   console.log('numCircles Value: ', numCircles);
+
+//   // Draw circles based on the potentiometer value
+//   for (let i = 0; i < numCircles; i++) {
+//     let radius = random(50, 100);  // Random radius for each circle
+//     let noiseScale = random(0.002, 0.005);  // Random noise scale for each circle
+//     let xOffset = random(-width / 4, width / 4);  // Random horizontal offset
+//     let yOffset = random(-height / 4, height / 4); // Random vertical offset
+//     fill("red")
+//     circle(width/i, height/i, 50)
+//     // Draw each circle
+//     // distortedCircle(width / 2 + xOffset, height / 2 + yOffset, radius, noiseScale);
+//   }
+//   // If only one circle is drawn, apply normal distortion behavior
+//   if (numCircles === 1) {
+//     distortedCircle(width / 2, height / 2, 100, 0.003);
+//   }
+  
+// }
+
+
+function connectBtnClick() {
+  if (!port.opened()) {
+    port.open('Arduino', 9600);
+  } else {
+    port.close();
+  }
+}
